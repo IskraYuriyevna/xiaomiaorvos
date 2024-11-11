@@ -1,5 +1,16 @@
 #include "types.h"
 #include "platform.h"
+// UART Universal Asynchronous Receiver and Transmitter
+// 串行：按位发送和接收。波特率（baud rate）是每秒传输的二进制位数，单位为bps
+// 异步：不需要时钟线，直接发送数据，但是需要约定通讯协议格式
+// 全双工：可以同时进行收发两方向的数据传递
+
+//UART的通讯协议：
+//空闲位：总线处于空闲的信号线状态为‘1’
+//起始位：先发出一个‘0’
+//数据位，数据长度可以是5/6/7/8/9位，一般是8位，先低后高发送
+//奇偶校验位，需要设置为无校验，奇校验，偶校验和始终为0或1
+//停止位：数据结束标志，可以是1,1.5，2位的高电平
 
 /*
  * The UART control registers are memory-mapped at address UART0. 
@@ -7,7 +18,7 @@
  */
 #define UART_REG(reg) ((volatile uint8_t *)(UART0 + reg))
 
-/*
+/* 
  * Reference
  * [1]: TECHNICAL DATA ON 16550, http://byterunner.com/16550.html
  */
@@ -69,14 +80,17 @@
 
 void uart_init()
 //初始化uart,设置波特率和奇偶校验位等东西
-{
+{   
+    //这一段是关闭中段
     uart_write_reg(IER,0x00);
 
+    //这一段是波特率
     uint8_t lcr = uart_read_reg(LCR);
     uart_write_reg(LCR, lcr | (1 << 7));
 	uart_write_reg(DLL, 0x03);
 	uart_write_reg(DLM, 0x00);
 
+    //这一段是奇偶校验位
     lcr = 0;
     uart_write_reg(LCR,lcr | (3 << 0));
 }
@@ -87,7 +101,7 @@ int uart_putc(char ch)
     return uart_write_reg(THR,ch);
 }
 
-int uart_puts(char *s)
+void uart_puts(char *s)
 {
     while(*s){
         uart_putc(*s++);

@@ -23,6 +23,10 @@
  * 0x80000000 -- boot ROM jumps here in machine mode, where we load our kernel
  */
 
+
+/* used in os.ld */
+#define LENGTH_RAM 128*1024*1024
+
 /* This machine puts UART registers here in physical memory. */
 
 #define UART0 0x10000000L

@@ -6,7 +6,7 @@
 
 #include <stddef.h>
 #include <stdarg.h>
-
+ 
 /* uart */
 extern int uart_putc(char ch);
 extern void uart_puts(char *s);
@@ -62,6 +62,7 @@ struct context {
 //这两个函数用来创建一个任务和延迟一个任务（将CPU留给其他任务）
 extern int  task_create(void (*task)(void));
 extern void task_delay(volatile int count);
-
+//这个函数使当前任务放弃CPU的控制权，允许调度器选择另一个任务执行
+extern void task_yield();
 
 #endif /* __OS_H__ */

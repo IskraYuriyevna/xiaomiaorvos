@@ -36,16 +36,18 @@ static uint32_t _num_pages = 0;
  * - bit 1: flag if this page is the last page of the memory block allocated
  */
 struct Page {
-	uint8_t flags;
+	uint8_t flags;//用于储存页面的状态标志
 };
 
 static inline void _clear(struct Page *page)
 {
+	//将page的flags字段设置为0,清楚所有标志位
 	page->flags = 0;
 }
 
 static inline int _is_free(struct Page *page)
 {
+	//检查page的flags字段是否有PAGE_TAKEN标志
 	if (page->flags & PAGE_TAKEN) {
 		return 0;
 	} else {
@@ -55,11 +57,13 @@ static inline int _is_free(struct Page *page)
 
 static inline void _set_flag(struct Page *page, uint8_t flags)
 {
+	//将flags的值通过按位或操作添加到page的flags字段中
 	page->flags |= flags;
 }
 
 static inline int _is_last(struct Page *page)
 {
+	//检查page的flags字段包含PAGE_LAST标志
 	if (page->flags & PAGE_LAST) {
 		return 1;
 	} else {
@@ -72,6 +76,8 @@ static inline int _is_last(struct Page *page)
  */
 static inline ptr_t _align_page(ptr_t address)
 {
+	//inline是内联函数，内联函数在编译时会直接把代码插入调用的地方，可以减少调用开销，但增加编译时间和程序大小
+	//通过左移并-1,将地址与这个数的按位取反进行按位与，会将地址的低位清理，从而对齐
 	ptr_t order = (1 << PAGE_ORDER) - 1;
 	return (address + order) & (~order);
 }
@@ -93,6 +99,8 @@ static inline ptr_t _align_page(ptr_t address)
 
 void page_init()
 {
+	//初始化页面管理系统的函数
+	//对齐堆起始地址
 	ptr_t _heap_start_aligned = _align_page(HEAP_START);
 
 	/* 
@@ -103,8 +111,10 @@ void page_init()
 	 * We assume LENGTH_RAM should not be too small, ideally no less
 	 * than 16M (i.e. PAGE_SIZE * PAGE_SIZE).
 	 */
+	 //计算保留页面数量
 	uint32_t num_reserved_pages = LENGTH_RAM / (PAGE_SIZE * PAGE_SIZE);
 
+	//计算可用页面数量，并打印堆信息
 	_num_pages = (HEAP_SIZE - (_heap_start_aligned - HEAP_START))/ PAGE_SIZE - num_reserved_pages;
 	printf("HEAP_START = %p(aligned to %p), HEAP_SIZE = 0x%lx,\n"
 	       "num of reserved pages = %d, num of pages to be allocated for heap = %d\n",
@@ -116,15 +126,18 @@ void page_init()
 	 * allocating struct Page, because we have no requirement of alignment
 	 * for position of struct Page.
 	 */
+	 //初始化页面结构，将所有页面的flags清零
 	struct Page *page = (struct Page *)HEAP_START;
 	for (int i = 0; i < _num_pages; i++) {
 		_clear(page);
 		page++;	
 	}
 
+	//设置分配区域的起始和结束地址
 	_alloc_start = _heap_start_aligned + num_reserved_pages * PAGE_SIZE;
 	_alloc_end = _alloc_start + (PAGE_SIZE * _num_pages);
 
+	//打印内存段信息
 	printf("TEXT:   %p -> %p\n", TEXT_START, TEXT_END);
 	printf("RODATA: %p -> %p\n", RODATA_START, RODATA_END);
 	printf("DATA:   %p -> %p\n", DATA_START, DATA_END);
@@ -138,10 +151,14 @@ void page_init()
  */
 void *page_alloc(int npages)
 {
+	//分配一定数量的连续页面，输入的是需要分配的页面数量
 	/* Note we are searching the page descriptor bitmaps. */
-	int found = 0;
+	int found = 0;//用于标记是否找到了足够的为分配页面
 	struct Page *page_i = (struct Page *)HEAP_START;
+	//用于遍历页面描述符的指针
+
 	for (int i = 0; i <= (_num_pages - npages); i++) {
+		//查找连续的为分配页面
 		if (_is_free(page_i)) {
 			found = 1;
 			/* 
@@ -162,6 +179,7 @@ void *page_alloc(int npages)
 			 * address of the first page of this memory block
 			 */
 			if (found) {
+				//标记页面为已分配
 				struct Page *page_k = page_i;
 				for (int k = i; k < (i + npages); k++) {
 					_set_flag(page_k, PAGE_TAKEN);
@@ -169,11 +187,13 @@ void *page_alloc(int npages)
 				}
 				page_k--;
 				_set_flag(page_k, PAGE_LAST);
+				//返回分配的内存块地址
 				return (void *)(_alloc_start + i * PAGE_SIZE);
 			}
 		}
 		page_i++;
 	}
+	//如果没有找到足够的空闲页面，返回NULL
 	return NULL;
 }
 
@@ -182,17 +202,21 @@ void *page_alloc(int npages)
  * - p: start address of the memory block
  */
 void page_free(void *p)
+//释放分配的内存块
 {
 	/*
 	 * Assert (TBD) if p is invalid
 	 */
+	 //检查输入是否为空或超出了分配区域的结束地址
 	if (!p || (ptr_t)p >= _alloc_end) {
 		return;
 	}
 	/* get the first page descriptor of this memory block */
+	//计算页面描述符索引
 	struct Page *page = (struct Page *)HEAP_START;
 	page += ((ptr_t)p - _alloc_start)/ PAGE_SIZE;
 	/* loop and clear all the page descriptors of the memory block */
+	//清除页面描述符
 	while (!_is_free(page)) {
 		if (_is_last(page)) {
 			_clear(page);
@@ -205,7 +229,8 @@ void page_free(void *p)
 }
 
 void page_test()
-{
+{	
+	//测试函数
 	void *p = page_alloc(2);
 	printf("p = %p\n", p);
 	//page_free(p);

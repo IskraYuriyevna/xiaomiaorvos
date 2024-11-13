@@ -12,6 +12,7 @@ CFLAGS += -march=rv32g -mabi=ilp32
 
 QEMU = qemu-system-riscv32
 QFLAGS = -nographic -smp 1 -machine virt -bios none
+#这里的1可以改成8,那样8个核就都会启动，但是没有用
 
 GDB = gdb-multiarch
 CC = ${CROSS_COMPILE}gcc

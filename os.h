@@ -2,6 +2,7 @@
 #define __OS_H__
 
 #include "types.h"
+#include "riscv.h"
 #include "platform.h"
 
 #include <stddef.h>
@@ -10,6 +11,7 @@
 /* uart */
 extern int uart_putc(char ch);
 extern void uart_puts(char *s);
+extern int uart_getc(void);
 
 /* printf */
 extern int  printf(const char* s, ...);
@@ -64,5 +66,9 @@ extern int  task_create(void (*task)(void));
 extern void task_delay(volatile int count);
 //这个函数使当前任务放弃CPU的控制权，允许调度器选择另一个任务执行
 extern void task_yield();
+
+/* plic */
+extern int plic_claim(void);//
+extern void plic_complete(int irq);//
 
 #endif /* __OS_H__ */

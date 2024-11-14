@@ -96,14 +96,40 @@ void uart_init()
 }
 
 int uart_putc(char ch)
+//从串口输出字符
 {
     while((uart_read_reg(LSR)&LSR_TX_IDLE)==0);
+    //这是一个循环，它会持续检查 (uart_read_reg(LSR) & LSR_TX_IDLE) 的结果是否为 0。
+    //如果为 0，表示发送缓冲区不空闲，循环继续；如果为非 0，表示发送缓冲区空闲，循环结束。
     return uart_write_reg(THR,ch);
 }
 
 void uart_puts(char *s)
+//从串口输出字符串
 {
     while(*s){
         uart_putc(*s++);
     }
+}
+
+int uart_getc(void)
+//从串口输入字符
+{
+	while (0 == (uart_read_reg(LSR) & LSR_RX_READY))
+    //循环等待，直到 UART 的行状态寄存器（LSR）中的接收缓冲区准备就绪位（LSR_RX_READY）为 1，表示有数据可读。
+		;
+	return uart_read_reg(RHR);
+    //从 UART 的接收缓冲区寄存器（RHR）读取一个字符并返回。
+}
+
+/*
+ * handle a uart interrupt, raised because input has arrived, called from trap.c.
+ */
+void uart_isr(void)
+//处理UART中断
+{
+	uart_putc((char)uart_getc());
+    //从 UART 接收一个字符，并通过 UART 发送出去。这通常用于回显输入的字符。
+	/* add a new line just to look better */
+	uart_putc('\n');
 }

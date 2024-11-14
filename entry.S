@@ -93,6 +93,52 @@
 
 .text
 
+# interrupts and exceptions while in machine mode come here.
+.globl trap_vector
+# the trap vector base address must always be aligned on a 4-byte boundary
+.balign 4
+trap_vector:
+	# 这一段是中断向量，用于处理来自硬件的中断或异常
+	
+	# 保存上下文，首先交换mscratch和t6的值，mscratch是一个控制状态寄存器，可以用来保存当前任务的上下文指针
+	# save context(registers).
+	csrrw	t6, mscratch, t6	# swap t6 and mscratch
+	reg_save t6
+
+	# 把t6的值移动到t5寄存器，再将mscratch寄存器读取值到t6
+	# 最后将t6的值保存到上下文结构中的第30个寄存器的位置
+	# Save the actual t6 register, which we swapped into
+	# mscratch
+	mv	t5, t6			# t5 points to the context of current task
+	csrr	t6, mscratch		# read t6 back from mscratch
+	STORE	t6, 30*SIZE_REG(t5)	# save t6 with t5 as base
+
+	# 恢复上下文指针到mscratch
+	# Restore the context pointer into mscratch
+	csrw	mscratch, t5
+
+	# 读取mepc（异常发生时的程序计数器）到a0寄存器
+	# 读取mcause（异常原因）到a1寄存器
+	# 调用 trap_handler 函数，这个函数由c语言写成
+	# call the C trap handler in trap.c
+	csrr	a0, mepc
+	csrr	a1, mcause
+	call	trap_handler
+
+	# 将 trap_handler 的返回值读取到mepc
+	# trap_handler will return the return address via a0.
+	csrw	mepc, a0
+
+	# 从 mscratch 恢复上下文指针到 t6,调用 reg_restore 宏，从t6指向的内存位置恢复当前人物的寄存器状态
+	# restore context(registers).
+	csrr	t6, mscratch
+	reg_restore t6
+
+	# 回到中断之前的位置
+	# return to whatever we were doing before trap.
+	mret
+
+
 # void switch_to(struct context *next);
 # a0: pointer to the context of the next task
 .globl switch_to

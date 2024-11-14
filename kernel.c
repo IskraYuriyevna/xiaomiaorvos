@@ -6,6 +6,8 @@ extern void page_init(void);//初始化分页
 extern void sched_init();//初始化任务调度
 extern void schedule(void);//任务调度函数
 extern void os_main(void);//OS主函数
+extern void trap_init(void);//初始化中断
+extern void plic_init(void);//初始化硬件中断
 
 void start_kernel(void)
 {
@@ -14,6 +16,10 @@ void start_kernel(void)
     //向串口发送"Hello,RVOS!\n"
   
     page_init();
+
+    trap_init();
+
+    plic_init();
 
     sched_init();
 

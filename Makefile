@@ -11,5 +11,7 @@ SRCS_C = \
 	page.c \
 	sched.c \
 	user.c \
+	trap.c \
+	plic.c \
 
 include ./common.mk

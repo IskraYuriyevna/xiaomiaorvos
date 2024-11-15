@@ -33,7 +33,7 @@ SECTIONS
 	 * parentheses means to match the .text section of ANY object file.
 	 */
     /*
-     *这段就是说.text这一皆会被放到ram里面去
+     *这段就是说.text这一节会被放到ram里面去
      */
 	.text : {
 		PROVIDE(_text_start = .);

@@ -59,6 +59,8 @@ struct context {
 	reg_t t4;
 	reg_t t5;
 	reg_t t6;
+
+	reg_t pc;
 };
 
 //这两个函数用来创建一个任务和延迟一个任务（将CPU留给其他任务）

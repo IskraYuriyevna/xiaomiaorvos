@@ -48,7 +48,7 @@ void plic_init(void)
 
 	/* enable machine-mode global interrupts. */
 	//通过设置mstatus寄存器中的MSTATUS_MIE位，启用机器模式下的全局中断
-	w_mstatus(r_mstatus() | MSTATUS_MIE);
+	//w_mstatus(r_mstatus() | MSTATUS_MIE);
 }
 
 /* 

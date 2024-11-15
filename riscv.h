@@ -53,6 +53,8 @@ static inline void w_mstatus(reg_t x)
 	asm volatile("csrw mstatus, %0" : : "r" (x));
 }
 
+
+
 /*
  * machine exception program counter, holds the
  * instruction address to which a return from
@@ -76,6 +78,13 @@ static inline reg_t r_mepc()
 static inline void w_mscratch(reg_t x)
 //向 mscratch 寄存器写入值，该寄存器用于在上下文切换时保存临时数据。
 {
+	//asm volatile是在C语言中内嵌汇编代码
+	//这一句是将x的值写入到mscratch寄存器
+	//volatile告诉编译器这句不能优化也不能合并
+	//csrw表示控制状态寄存器写入，mscratch是寄存器名称
+	//%0是第一个操作数，它会被替换为x的值
+	//： ：表示该指令没有输出
+	//r(x)制定了输入x应该被当作一个通用寄存器(r表示register)处理
 	asm volatile("csrw mscratch, %0" : : "r" (x));
 }
 

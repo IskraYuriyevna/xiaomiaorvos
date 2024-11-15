@@ -44,6 +44,9 @@ _start:
 					# to its place in the stack space
     # 将sp寄存器的值加上t0的值，为当前hart设置正确的栈指针
 
+	li	t0, 3 << 11 | 1 << 7 # 加载立即数到t0
+	csrs	mstatus, t0 # 将t0的值设置到mstatus
+
 	j	start_kernel		# hart 0 jump to c
     # 如果当前是主hart(hart0)，跳转到C语言编写的start_kernel函数继续执行
 

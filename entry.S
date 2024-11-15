@@ -113,6 +113,11 @@ trap_vector:
 	csrr	t6, mscratch		# read t6 back from mscratch
 	STORE	t6, 30*SIZE_REG(t5)	# save t6 with t5 as base
 
+	# 保存mepc到当前任务的上下文
+	# save mepc to context of current task
+	csrr	a0, mepc
+	STORE	a0, 31*SIZE_REG(t5)
+
 	# 恢复上下文指针到mscratch
 	# Restore the context pointer into mscratch
 	csrw	mscratch, t5
@@ -144,31 +149,58 @@ trap_vector:
 .globl switch_to
 .balign 4
 switch_to:
-	csrrw	t6, mscratch, t6	# swap t6 and mscratch
-	beqz	t6, 1f			# Note: the first time switch_to() is
-	                                # called, mscratch is initialized as zero
-					# (in sched_init()), which makes t6 zero,
-					# and that's the special case we have to
-					# handle with t6
-	reg_save t6			# save context of prev task
-
-	# Save the actual t6 register, which we swapped into
-	# mscratch
-	mv	t5, t6			# t5 points to the context of current task
-	csrr	t6, mscratch		# read t6 back from mscratch
-	STORE	t6, 30*SIZE_REG(t5)	# save t6 with t5 as base
-
-1:
+	# 切换 mscratch 寄存器，设置 mepc 寄存器
 	# switch mscratch to point to the context of the next task
+	# 这条指令将 a0 寄存器的值写入 mscratch 寄存器。
+	# mscratch 寄存器通常用于保存当前任务的上下文指针，在任务切换时指向下一个任务的上下文。
 	csrw	mscratch, a0
+	
+	# set mepc to the pc of the next task
+	# 这条指令从 a0 指向的地址（即下一个任务的上下文）加载程序计数器（PC）的值到 a1 寄存器。
+	LOAD	a1, 31*SIZE_REG(a0)
+	# 这条指令将 a1 寄存器的值写入 mepc 寄存器。
+	# mepc 寄存器用于保存中断或异常返回时的程序计数器值。
+	csrw	mepc, a1
 
+	# 恢复所有通用寄存器
 	# Restore all GP registers
 	# Use t6 to point to the context of the new task
+	# 将 a0 寄存器的值（下一个任务的上下文指针）移动到 t6 寄存器。
 	mv	t6, a0
+	# 调用 reg_restore 宏，使用 t6 指向的上下文恢复所有通用寄存器的值。
 	reg_restore t6
 
 	# Do actual context switching.
-	ret
+	# Notice this will enable global interrupt
+	# 执行 mret 指令，从中断或异常返回，
+	# 这将使控制权转移到 mepc 寄存器指定的地址，并恢复之前保存的寄存器状态
+	mret
+
+#	csrrw	t6, mscratch, t6	# swap t6 and mscratch
+#	beqz	t6, 1f			# Note: the first time switch_to() is
+#	                                # called, mscratch is initialized as zero
+#					# (in sched_init()), which makes t6 zero,
+#					# and that's the special case we have to
+#					# handle with t6
+#	reg_save t6			# save context of prev task
+
+#	# Save the actual t6 register, which we swapped into
+#	# mscratch
+#	mv	t5, t6			# t5 points to the context of current task
+#	csrr	t6, mscratch		# read t6 back from mscratch
+#	STORE	t6, 30*SIZE_REG(t5)	# save t6 with t5 as base
+
+# 1:
+#	# switch mscratch to point to the context of the next task
+#	csrw	mscratch, a0
+
+#	# Restore all GP registers
+#	# Use t6 to point to the context of the new task
+#	mv	t6, a0
+#	reg_restore t6
+
+#	# Do actual context switching.
+#	ret
 
 .end
 

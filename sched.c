@@ -17,17 +17,7 @@ struct context ctx_tasks[MAX_TASKS];
 static int _top = 0;
 static int _current = -1;
 
-static void w_mscratch(reg_t x)
-{
-	//asm volatile是在C语言中内嵌汇编代码
-	//这一句是将x的值写入到mscratch寄存器
-	//volatile告诉编译器这句不能优化也不能合并
-	//csrw表示控制状态寄存器写入，mscratch是寄存器名称
-	//%0是第一个操作数，它会被替换为x的值
-	//： ：表示该指令没有输出
-	//r(x)制定了输入x应该被当作一个通用寄存器(r表示register)处理
-	asm volatile("csrw mscratch, %0" : : "r" (x));
-}
+
 
 //void user_task0(void);
 void sched_init()
@@ -35,6 +25,7 @@ void sched_init()
 {
 	w_mscratch(0);
 
+	w_mie(r_mie() | MIE_MSIE);
 	//ctx_task.sp = (reg_t) &task_stack[STACK_SIZE];
 	//把任务的第一条指令的地址保存到ra
 	//ctx_task.ra = (reg_t) user_task0;
@@ -58,18 +49,26 @@ void schedule()
 	struct context *next = &(ctx_tasks[_current]);
 	//将下一个任务的上下文指针传入switch_to函数
 	//该函数将当前任务的上下文保存并读取下一个任务的上下文
-	switch_to(next);
+	switch_to(next); 
 }
 
 int task_create(void (*start_routin)(void))
-//这个函数传入一个指向人物的入口函数的指针
+//这个函数传入一个指向任务的入口函数的指针
 {
 	if (_top < MAX_TASKS) {
 		//如果当前任务数量小于最大任务数量
 		//为新任务设置栈指针(sp)，这里将栈顶指针地址赋给任务的栈指针
 		ctx_tasks[_top].sp = (reg_t) &task_stack[_top][STACK_SIZE];
 		//设置任务的返回地址(ra)，也就是任务入口函数的地址，这样当任务开始执行的时候将会从这里开始执行
-		ctx_tasks[_top].ra = (reg_t) start_routin;
+		//如果你问这里为什么多了这么多调试代码，就看看下一行：
+		//由于之前的例子中这里是ra,而第八课中是pc,我没有发现这里不同
+		//所以说没有修改，导致多任务跳转时就会出错
+		//因此我花了3个多小时查找错误原因
+		//发现是因为切换时会跳转到非法的地址
+		//于是我寻找了很久是否是硬件的定义出了问题
+		//最后在这里发现有一个寄存器发生了变化
+		//ctx_tasks[_top].ra = (reg_t) start_routin;
+		ctx_tasks[_top].pc = (reg_t) start_routin;
 		//任务数量加一
 		_top++;
 		return 0;
@@ -79,6 +78,95 @@ int task_create(void (*start_routin)(void))
 	}
 }
 
+// int task_create(void (*start_routin)(void))
+// {
+//     if (_top < MAX_TASKS) {
+//         printf("Creating task %d\n", _top);
+//         printf("Entry address: %p\n", start_routin);
+        
+//         // 获取上下文指针
+//         struct context *ctx = &ctx_tasks[_top];
+        
+//         // 手动清零整个上下文
+//         for(int i = 0; i < sizeof(struct context)/sizeof(reg_t); i++) {
+//             ((reg_t*)ctx)[i] = 0;
+//         }
+        
+//         // 设置必要的字段
+//         ctx->sp = (reg_t) &task_stack[_top][STACK_SIZE];
+//         ctx->ra = (reg_t) start_routin;
+        
+//         // 直接访问 PC 字段，使用偏移量确保正确访问
+//         reg_t *pc_ptr = (reg_t*)((char*)ctx + 124);  // 使用确认的偏移量
+//         *pc_ptr = (reg_t)start_routin;
+        
+//         printf("Context ra: %p\n", ctx->ra);
+//         printf("Context sp: %p\n", ctx->sp);
+//         printf("Context pc: %p\n", *pc_ptr);  // 打印设置的 PC 值
+        
+//         _top++;
+//         return 0;
+//     }
+//     return -1;
+// }
+
+// int task_create(void (*start_routin)(void))
+// {
+//     if (_top < MAX_TASKS) {
+//         printf("Creating task %d\n", _top);
+//         printf("Entry address: %p\n", start_routin);
+//         printf("Stack address: %p\n", &task_stack[_top][STACK_SIZE]);
+        
+//         ctx_tasks[_top].sp = (reg_t) &task_stack[_top][STACK_SIZE];
+// 		ctx_tasks[_top].ra = (reg_t) start_routin;
+        
+//         printf("Context ra: %p\n", ctx_tasks[_top].ra);
+//     	printf("Context sp: %p\n", ctx_tasks[_top].sp);
+        
+//         _top++;
+//         return 0;
+//     }
+//     return -1;
+// }
+
+// void schedule()
+// {   
+//     if (_top <= 0) {
+//         panic("Num of task should be greater then zero!");
+//         return;
+//     }
+    
+//     printf("Scheduling: current=%d, top=%d\n", _current, _top);
+//     _current = (_current + 1) % _top;
+//     printf("Switching to task %d\n", _current);
+    
+//     struct context *next = &(ctx_tasks[_current]);
+//     printf("Next task PC = 0x%08x\n", next->pc);  // 添加这行
+    
+//     switch_to(next); 
+// }
+
+// void check_context_layout(void) 
+// {
+//     struct context ctx;
+//     printf("Context layout check:\n");
+//     printf("Size of reg_t: %d bytes\n", sizeof(reg_t));
+//     printf("Size of context: %d bytes\n", sizeof(struct context));
+//     printf("Offset of ra: %d bytes\n", (char*)&ctx.ra - (char*)&ctx);
+//     printf("Offset of sp: %d bytes\n", (char*)&ctx.sp - (char*)&ctx);
+//     printf("Offset of t6: %d bytes\n", (char*)&ctx.t6 - (char*)&ctx);  // 添加这行
+//     printf("Offset of pc: %d bytes\n", (char*)&ctx.pc - (char*)&ctx);
+//     printf("Expected PC offset in asm: %d bytes\n", 31 * 4);
+
+//     // 添加任务0的上下文检查
+//     if (_top > 0) {
+//         printf("\nTask 0 context check:\n");
+//         printf("ra = 0x%08x\n", ctx_tasks[0].ra);
+//         printf("sp = 0x%08x\n", ctx_tasks[0].sp);
+//         printf("pc = 0x%08x\n", ctx_tasks[0].pc);
+//     }
+// }
+
 /*
  * DESCRIPTION
  * 	task_yield()  causes the calling task to relinquish the CPU and a new 
@@ -87,7 +175,10 @@ int task_create(void (*start_routin)(void))
 void task_yield()
 //这个函数使当前任务放弃CPU的控制权，允许调度器选择另一个任务执行
 {
-	schedule();
+	//schedule();	
+	/* trigger a machine-level software interrupt */
+	int id = r_mhartid();
+	*(uint32_t*)CLINT_MSIP(id) = 1;
 }
 
 /*
@@ -100,14 +191,4 @@ void task_delay(volatile int count)
 	while (count--);
 }
 
-
-// void user_task0(void)
-// //这是第一个（或者说第0个任务），就是每隔一秒不停打印running
-// {
-// 	uart_puts("Task 0: Created!\n");
-// 	while (1) {
-// 		uart_puts("Task 0: Running...\n");
-// 		task_delay(1000);
-// 	}
-// }
 

@@ -2,9 +2,11 @@
 
 extern void trap_vector(void);
 extern void uart_isr(void);
+extern void timer_handler(void);
+extern void schedule(void);
 
 void trap_init()
-//初始化中断向量的基地址
+//初始化中断向量的基地址 
 {
 	/*
 	 * set the trap-vector base-address for machine-mode
@@ -46,22 +48,47 @@ reg_t trap_handler(reg_t epc, reg_t cause)
 		switch (cause_code) {
 		case 3://软件中断
 			uart_puts("software interruption!\n");
+			/*
+			 * acknowledge the software interrupt by clearing
+    			 * the MSIP bit in mip.
+			 */
+			int id = r_mhartid();//读取硬件线程ID
+			//这行代码通过计算 CLINT（Core Local Interruptor）的 MSIP（Machine Software Interrupt Pending）寄存器地址，并将其值设置为 0，来清除特定硬件线程的软件中断标志
+    			*(uint32_t*)CLINT_MSIP(id) = 0;
+			/* CLINT_MSIP(id) 宏定义计算 MSIP 寄存器的地址，该地址是基于硬件线程 ID 的。CLINT_BASE 加上 id 再乘以 4（因为每个 MSIP 寄存器占 4 个字节）。
+			 * (uint32_t*) 将计算出的地址转换为 uint32_t 类型的指针，这样就可以通过解引用这个指针来读写寄存器的值。
+			 * *(uint32_t*)CLINT_MSIP(id) = 0; 将 MSIP 寄存器的值设置为 0，这通常用于清除或禁用软件中断。
+			 */
+			 
+			schedule();
+
 			break;
 		case 7://定时器中断
 			uart_puts("timer interruption!\n");
+			timer_handler();
 			break;
 		case 11://外部中断
 			uart_puts("external interruption!\n");
+			external_interrupt_handler();
 			break;
 		default://未知中断
 			printf("Unknown async exception! Code = %ld\n", cause_code);
 			break;
 		}
+	// }else {
+    //     /* Synchronous trap - exception */
+    //     printf("Sync exceptions! Code = %d\n", cause_code);
+    //     printf("Exception PC = 0x%08x\n", epc);  // 添加这行，打印发生异常时的程序计数器值
+        
+    //     panic("OOPS! What can I do!");
+    // }
+
 	} else {
 		//打印同步异常的原因代码，并调用panic函数
 		/* Synchronous trap - exception */
 		printf("Sync exceptions! Code = %ld\n", cause_code);
 		panic("OOPS! What can I do!");
+		//可以不进行panic强制进行程序的下一步
 		//return_pc += 4;
 	}
 

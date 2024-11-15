@@ -1,5 +1,6 @@
 #include "types.h"
 #include "platform.h"
+#include "os.h"
 // UART Universal Asynchronous Receiver and Transmitter
 // 串行：按位发送和接收。波特率（baud rate）是每秒传输的二进制位数，单位为bps
 // 异步：不需要时钟线，直接发送数据，但是需要约定通讯协议格式
@@ -93,6 +94,11 @@ void uart_init()
     //这一段是奇偶校验位
     lcr = 0;
     uart_write_reg(LCR,lcr | (3 << 0));
+
+    //读取UART中断使能寄存器
+    uint8_t ier = uart_read_reg(IER);
+    //修改并写回UART中断使能寄存器
+	uart_write_reg(IER, ier | (1 << 0));
 }
 
 int uart_putc(char ch)

@@ -44,9 +44,44 @@ _start:
 					# to its place in the stack space
     # 将sp寄存器的值加上t0的值，为当前hart设置正确的栈指针
 
+#ifdef CONFIG_SYSCALL
+	# 对 QEMU 版本 6.0 及以上的适配，因为在这些版本中，如果没有配置 PMP 规则，会引发异常。因此，这段代码是一个临时的解决方案，直到 QEMU 的问题被解决。
+	# PMP 配置允许对整个物理地址空间的访问，这在开发和测试阶段可能是有用的，但在生产环境中可能需要更精细的控制。
+	# https://lore.kernel.org/qemu-devel/20201223192553.332508-1-atish.patra@wdc.com/
+	# For qemu version >= 6.0, exception would be raised if no PMP enty is
+	# configured. So just configure one entny, which allows all the whole
+	# 32-bits physical address range is R/W/X.
+	# FIXME: I say it is a temporary workaroud due to I think the patch
+	# above contains bug, and I have raised new issue to qemu but it has not
+	# been rootcaused till now. Details please refer to
+	# https://gitlab.com/qemu-project/qemu/-/issues/585 or
+	# https://gitee.com/unicornx/riscv-operating-system-mooc/issues/I441IC (in chinese)
+	# So it's just a temporary workaround till now to not block people who
+	# want to try newer qemu (>= 6.0).
+	# 这些指令配置了 PMP（Physical Memory Protection）寄存器，以允许对整个 32 位物理地址空间的读写执行（R/W/X）访问。
+	li      t0, 0xffffffff
+	csrw    pmpaddr0, t0 # 将 t0 的值写入 pmpaddr0 寄存器，设置 PMP 规则的基址。
+	li      t0, 0xf # 将立即数 0xf 加载到寄存器 t0，其中 0xf 表示允许读（R）、写（W）和执行（X）。
+	csrw    pmpcfg0, t0 # 将 t0 的值写入 pmpcfg0 寄存器，设置 PMP 规则的配置。
+#endif
+
+	# At the end of start_kernel, schedule() will call MRET to switch
+	# to the first task, so we parepare the mstatus here.
+	# Notice: It is best not to assume that the initial value of mstatus is
+	# zero.
+#ifdef CONFIG_SYSCALL
+	# Set mstatus.MPP as 0, so we will run in User mode after MRET.
+	# No need to set mstatus.MPIE to 1 explicitly, because according to ISA
+	# specification: interrupts for M-mode, which is higher than U-mode, are
+	# always globally enabled regardless of the setting of the global MIE bit.
+	li	t0, 3 << 11 # 这里 3 << 11 表示将 3 左移 11 位，设置 MSTATUS_MPP 为 3，即用户模式（User Mode）。
+	csrc	mstatus, t0 # 这里 csrc 指令是清除并设置寄存器的指令，它清除 mstatus 寄存器的 MPP 位，并将 t0 的值写入，设置为用户模式。
+
+#else
 	li	t0, 3 << 11 | 1 << 7 # 加载立即数到t0
 	csrs	mstatus, t0 # 将t0的值设置到mstatus
 
+# endif
 	j	start_kernel		# hart 0 jump to c
     # 如果当前是主hart(hart0)，跳转到C语言编写的start_kernel函数继续执行
 

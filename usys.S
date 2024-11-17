@@ -6,7 +6,7 @@ gethid:
 	# 将系统调用编号 SYS_gethid 加载到寄存器 a7 中。
 	# 在 RISC-V 中，a7 通常用于传递系统调用编号。
 	li a7, SYS_gethid
-	# 触发系统调用
+	# 触发系统调用，ecall用于从用户模式切换到内核模式并执行系统调用。
 	ecall
 	ret
  

@@ -3,7 +3,7 @@ SRCS_ASM = \
 	start.S \
 	mem.S \
 	entry.S \
-	usys.s
+	usys.S
 
 SRCS_C = \
 	kernel.c \

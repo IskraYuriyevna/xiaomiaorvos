@@ -9,26 +9,32 @@ void user_task0(void)
 	uart_puts("Task 0: Created!\n");
 
 	unsigned int hid = -1;
+	//用于存储硬件线程的ID
 
 	/*
 	 * if syscall is supported, this will trigger exception, 
 	 * code = 2 (Illegal instruction)
 	 */
+	//这一段备注是的代码演示如果不进行系统调用，r_mhartid会导致异常
+	//异常代码为2（非法指令异常），这是因为该指令是内核模式下的操作
 	//hid = r_mhartid();
 	//printf("hart id is %d\n", hid); 
 
 #ifdef CONFIG_SYSCALL
 	int ret = -1;
-	ret = gethid(&hid);
+	ret = gethid(&hid);//获取当前硬件线程的 ID
 	//ret = gethid(NULL);
 	if (!ret) {
+		//返回0表示系统调用成功，，并打印hid
 		printf("system call returned!, hart id is %d\n", hid);
 	} else {
+		//否则打印错误代码
 		printf("gethid() failed, return: %d\n", ret);
 	}
 #endif
 
 	while (1){
+		///死循环打印
 		uart_puts("Task 0: Running... \n");
 		task_delay(DELAY);
 	}

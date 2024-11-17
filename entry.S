@@ -124,10 +124,12 @@ trap_vector:
 
 	# 读取mepc（异常发生时的程序计数器）到a0寄存器
 	# 读取mcause（异常原因）到a1寄存器
+	# 读取mscratch（控制状态寄存器）到a2寄存器
 	# 调用 trap_handler 函数，这个函数由c语言写成
 	# call the C trap handler in trap.c
 	csrr	a0, mepc
 	csrr	a1, mcause
+	csrr	a2, mscratch
 	call	trap_handler
 
 	# 将 trap_handler 的返回值读取到mepc

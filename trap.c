@@ -4,6 +4,7 @@ extern void trap_vector(void);
 extern void uart_isr(void);
 extern void timer_handler(void);
 extern void schedule(void);
+extern void do_syscall(struct context *cxt);
 
 void trap_init()
 //初始化中断向量的基地址 
@@ -34,7 +35,7 @@ void external_interrupt_handler()
 }
 
  
-reg_t trap_handler(reg_t epc, reg_t cause)
+reg_t trap_handler(reg_t epc, reg_t cause,struct context *cxt)
 //epc：异常程序计数器（Exception Program Counter），表示发生异常时的程序计数器值。
 //cause：表示异常原因的寄存器值。
 {
@@ -71,7 +72,7 @@ reg_t trap_handler(reg_t epc, reg_t cause)
 			uart_puts("external interruption!\n");
 			external_interrupt_handler();
 			break;
-		default://未知中断
+		default://未知异步中断
 			printf("Unknown async exception! Code = %ld\n", cause_code);
 			break;
 		}
@@ -84,12 +85,20 @@ reg_t trap_handler(reg_t epc, reg_t cause)
     // }
 
 	} else {
-		//打印同步异常的原因代码，并调用panic函数
+		//打印同步异常的原因代码
 		/* Synchronous trap - exception */
 		printf("Sync exceptions! Code = %ld\n", cause_code);
-		panic("OOPS! What can I do!");
-		//可以不进行panic强制进行程序的下一步
-		//return_pc += 4;
+		switch(cause_code){
+			case 8://系统调用引发的中断
+				uart_puts("System call from U-mode!\n");
+				do_syscall(cxt);//系统调用处理，传入上下文指针
+				return_pc += 4;//返回时更新程序计数器到下一步指令
+				break;
+			default://
+				panic("OOPS! What can I do!");
+				//也可以不进行panic强制进行程序的下一步
+				//return_pc += 4;
+		}
 	}
 
 	//返回处理后的程序计数器值 return_pc。
@@ -97,6 +106,7 @@ reg_t trap_handler(reg_t epc, reg_t cause)
 }
 
 void trap_test()
+//测试代码，尝试向一个不存在的地址写入内容
 {
 	/*
 	 * Synchronous exception code = 7

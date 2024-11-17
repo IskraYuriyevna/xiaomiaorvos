@@ -3,6 +3,7 @@ SRCS_ASM = \
 	start.S \
 	mem.S \
 	entry.S \
+	usys.s
 
 SRCS_C = \
 	kernel.c \
@@ -14,5 +15,7 @@ SRCS_C = \
 	trap.c \
 	plic.c \
 	timer.c \
+	lock.c \
+	syscall.c
 
 include ./common.mk

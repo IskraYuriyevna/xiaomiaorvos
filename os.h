@@ -70,7 +70,23 @@ extern void task_delay(volatile int count);
 extern void task_yield();
 
 /* plic */
-extern int plic_claim(void);//
-extern void plic_complete(int irq);//
+extern int plic_claim(void);//获取硬件中断代码
+extern void plic_complete(int irq);//硬件中断处理完成
+
+/* lock */
+extern int spin_lock(void);//使用自旋锁
+extern int spin_unlock(void);//解除自旋锁
+
+/* software timer */
+//软件计时器结构
+struct timer {
+	void (*func)(void *arg);//计时器到期时调用的函数
+	void *arg;//传入上面函数的参数
+	uint32_t timeout_tick;//定时器到期的时间，以时钟周期为单位
+};
+//创建一个新的定时器，并返回指向该定时器的指针。如果创建失败，返回 NULL。
+extern struct timer *timer_create(void (*handler)(void *arg), void *arg, uint32_t timeout);
+//删除指定的定时器，并释放与之关联的资源。
+extern void timer_delete(struct timer *timer);
 
 #endif /* __OS_H__ */
